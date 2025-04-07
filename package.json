@@ -3,10 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "raydium:maim": "npx ts-node-script src/main/raydium-main.ts"
+    "raydium-main:ts": "ts-node -r tsconfig-paths/register src/main/raydium-main.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^9.3.0",
@@ -84,6 +81,7 @@
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "tailwindcss": "^3.4.17",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3"
   },
   "pnpm": {
