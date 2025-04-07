@@ -1,4 +1,7 @@
 import { Cluster } from "@solana/web3.js";
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.local' });
 
 export interface IHeliusNetworkConfig {
   endpoint: string;
