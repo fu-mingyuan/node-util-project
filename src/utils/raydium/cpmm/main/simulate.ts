@@ -2,10 +2,10 @@ import { TX_VERSION } from "@/utils/raydium/raydium.config";
 import { API_URLS, TxVersion } from "@raydium-io/raydium-sdk-v2";
 import { PublicKey, Keypair } from "@solana/web3.js";
 import Decimal from "decimal.js";
-import axios, { AxiosResponse } from "axios";
+import axios from "axios";
 import RaydiumClient from "@/utils/raydium/raydiumClient";
 
-export interface SimulateSwapApiParams {
+export interface SwapParams {
   inputMint: PublicKey;
   outputMint: PublicKey;
   amount: string;
@@ -14,7 +14,7 @@ export interface SimulateSwapApiParams {
   slippage?: number; // in percent, e.g. 0.5 means 0.5%
 }
 
-interface SimulateSwapApiResult {
+export interface SwapCompute {
   id: string;
   success: true;
   version: "V0" | "V1";
@@ -41,9 +41,9 @@ interface SimulateSwapApiResult {
   };
 }
 
-export interface SimulateSwapResult {
+export interface SimulateResult {
   amount: string;
-  raw: SimulateSwapApiResult["data"];
+  raw: SwapCompute;
 }
 
 /**
@@ -61,7 +61,7 @@ export const simulate = async ({
   amount,
   swapType,
   slippage = 0.5,
-}: SimulateSwapApiParams): Promise<SimulateSwapResult | 0> => {
+}: SwapParams): Promise<SimulateResult | 0> => {
   // 参数校验：提前中断
   if (!inputMint || !outputMint || new Decimal(amount.trim() || 0).isZero()) {
     console.warn("Invalid simulateSwap parameters");
@@ -71,21 +71,19 @@ export const simulate = async ({
   try {
     const BPS_MULTIPLIER = 10000;
     const slippageBps = new Decimal(slippage * BPS_MULTIPLIER).toFixed(0);
-
     const mint = swapType === "BaseOut" ? outputMint : inputMint;
     const raydiumClient = await RaydiumClient.getInstance();
     const tokenInfo = await raydiumClient.token.getTokenInfo(mint);
     const decimals = tokenInfo.decimals;
-
     const amountInSmallestUnit = new Decimal(amount).mul(new Decimal(10).pow(decimals)).toFixed(0);
-
     const apiTrail = swapType === "BaseOut" ? "swap-base-out" : "swap-base-in";
+    const txVersion = TX_VERSION === TxVersion.V0 ? "V0" : "LEGACY";
+    const url = `${API_URLS.SWAP_HOST}/compute/${apiTrail}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInSmallestUnit}&slippageBps=${slippageBps}&txVersion=${txVersion}`;
 
-    const url = `${API_URLS.SWAP_HOST}/compute/${apiTrail}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInSmallestUnit}&slippageBps=${slippageBps}&txVersion=${
-      TX_VERSION === TxVersion.V0 ? "V0" : "LEGACY"
-    }`;
+    const response = await axios.get<SwapCompute>(url);
 
-    const response: AxiosResponse<SimulateSwapApiResult> = await axios.get(url);
+    // const { data: swapResponse } = await axios.get<SwapCompute>
+
     const data = response.data;
     if (data?.success && data.data) {
       return {
@@ -93,7 +91,7 @@ export const simulate = async ({
           swapType === "BaseOut"
             ? new Decimal(data.data.inputAmount).div(new Decimal(10).pow(decimals)).toString()
             : new Decimal(data.data.outputAmount).div(new Decimal(10).pow(decimals)).toString(),
-        raw: data.data,
+        raw: data,
       };
     }
 

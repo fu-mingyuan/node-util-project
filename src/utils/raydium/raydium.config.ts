@@ -10,7 +10,7 @@ import HeliusClient from "@/utils/helius/heliusClient";
 // 获取 Helius 网络配置
 const { cluster, endpoint } = HeliusClient.getCurrentNetwork();
 export const CLUSTER = cluster === "mainnet-beta" ? "mainnet" : "devnet";
-export const RAYDIUM_CONNECTION = new Connection(endpoint, "confirmed");
+export const CONNECTION = new Connection(endpoint, "confirmed");
 export const CPMM_POOL_PROGRAM_ID =
   cluster === "mainnet-beta" ? CREATE_CPMM_POOL_PROGRAM : DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM;
 export const CPMM_POOL_FEE_ACC_ACCOUNT =

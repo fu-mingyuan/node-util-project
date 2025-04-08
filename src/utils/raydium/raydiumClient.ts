@@ -1,6 +1,7 @@
-import { Raydium } from "@raydium-io/raydium-sdk-v2";
+import { parseTokenAccountResp, Raydium } from "@raydium-io/raydium-sdk-v2";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { CLUSTER, RAYDIUM_CONNECTION } from "@/utils/raydium/raydium.config";
+import { CLUSTER, CONNECTION } from "@/utils/raydium/raydium.config";
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 class RaydiumClient {
   private static instances: Map<string, Raydium> = new Map();
@@ -27,7 +28,7 @@ class RaydiumClient {
     try {
       const raydium = await Raydium.load({
         owner,
-        connection: RAYDIUM_CONNECTION,
+        connection: CONNECTION,
         cluster: CLUSTER,
         disableFeatureCheck: true,
         disableLoadToken: !params?.loadToken,
@@ -73,22 +74,22 @@ class RaydiumClient {
   // }
 }
 
-// const fetchTokenAccountData = async (owner: PublicKey) => {
-//   const solAccountResp = await RAYDIUM_CONNECTION.getAccountInfo(owner);
-//   const tokenAccountResp = await RAYDIUM_CONNECTION.getTokenAccountsByOwner(owner, {
-//     programId: TOKEN_PROGRAM_ID,
-//   });
-//   const token2022Req = await RAYDIUM_CONNECTION.getTokenAccountsByOwner(owner, {
-//     programId: TOKEN_2022_PROGRAM_ID,
-//   });
-//   return parseTokenAccountResp({
-//     owner: owner,
-//     solAccountResp,
-//     tokenAccountResp: {
-//       context: tokenAccountResp.context,
-//       value: [...tokenAccountResp.value, ...token2022Req.value],
-//     },
-//   });
-// };
+export const fetchTokenAccountData = async (owner: PublicKey) => {
+  const solAccountResp = await CONNECTION.getAccountInfo(owner);
+  const tokenAccountResp = await CONNECTION.getTokenAccountsByOwner(owner, {
+    programId: TOKEN_PROGRAM_ID,
+  });
+  const token2022Req = await CONNECTION.getTokenAccountsByOwner(owner, {
+    programId: TOKEN_2022_PROGRAM_ID,
+  });
+  return parseTokenAccountResp({
+    owner: owner,
+    solAccountResp,
+    tokenAccountResp: {
+      context: tokenAccountResp.context,
+      value: [...tokenAccountResp.value, ...token2022Req.value],
+    },
+  });
+};
 
 export default RaydiumClient;

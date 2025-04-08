@@ -1,77 +1,97 @@
-import { TX_VERSION } from "@/utils/raydium/raydium.config";
+import axios from "axios";
 import { API_URLS, TxVersion } from "@raydium-io/raydium-sdk-v2";
-import { PublicKey, Keypair } from "@solana/web3.js";
-import Decimal from "decimal.js";
-import axios, { AxiosResponse } from "axios";
-import RaydiumClient from "@/utils/raydium/raydiumClient";
+import { CONNECTION, TX_VERSION } from "@/utils/raydium/raydium.config";
+import { Keypair, VersionedTransaction, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { fetchTokenAccountData } from "@/utils/raydium/raydiumClient";
+import { NATIVE_MINT } from "@solana/spl-token";
+import { simulate, SimulateResult, SwapParams } from "@/utils/raydium/cpmm/main/simulate";
+import { sendAndConfirmV0Transaction } from "@/utils/solana/sendAndConfirmV0Transaction";
 
-export interface SimulateSwapApiParams {
-  inputMint: PublicKey;
-  outputMint: PublicKey;
-  amount: string;
-  swapType: "BaseOut" | "BaseIn";
-  owner?: Keypair;
-  slippage?: number; // in percent, for this example, 0.5 means 0.5%
-}
+export const swap = async (owner: Keypair, { inputMint, outputMint, amount, swapType, slippage = 0.5 }: SwapParams) => {
+  const simulateResult: SimulateResult | 0 = await simulate({ inputMint, outputMint, amount, swapType, slippage });
 
-interface SimulateSwapApiResult {
-  id: string;
-  success: true;
-  version: "V0" | "V1";
-  openTime?: undefined;
-  msg: undefined;
-  data: {
-    swapType: "BaseIn" | "BaseOut";
-    inputMint: string;
-    inputAmount: string;
-    outputMint: string;
-    outputAmount: string;
-    otherAmountThreshold: string;
-    slippageBps: number;
-    priceImpactPct: number;
-    referrerAmount: "0";
-    routePlan: {
-      poolId: string;
-      inputMint: string;
-      outputMint: string;
-      feeMint: string;
-      feeRate: number;
-      feeAmount: string;
-    }[];
-  };
-}
+  if (simulateResult == 0 || !simulateResult?.raw) {
+    return;
+  }
 
-export const simulateSwap = async ({
-  inputMint,
-  outputMint,
-  amount,
-  swapType,
-  slippage = 0.5,
-}: SimulateSwapApiParams) => {
+  // 试算结果
+  const swapResponse = simulateResult.raw;
+
+  // get statistical transaction fee from api
+  /**
+   * vh: very high
+   * h: high
+   * m: medium
+   */
+  const { data } = await axios.get<{
+    id: string;
+    success: boolean;
+    data: { default: { vh: number; h: number; m: number } };
+  }>(`${API_URLS.BASE_HOST}${API_URLS.PRIORITY_FEE}`);
+
+  const [isInputSol, isOutputSol] = [
+    inputMint.toBase58() === NATIVE_MINT.toBase58(),
+    outputMint.toBase58() === NATIVE_MINT.toBase58(),
+  ];
+
   const apiTrail = swapType === "BaseOut" ? "swap-base-out" : "swap-base-in";
-  const slippageBps = new Decimal(slippage * 10000).toFixed(0);
+  const txVersion = TX_VERSION === TxVersion.V0 ? "V0" : "LEGACY";
+  const isV0Tx = txVersion === "V0";
+  const { tokenAccounts } = await fetchTokenAccountData(owner.publicKey);
+  const inputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === inputMint.toBase58())?.publicKey;
+  const outputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === outputMint.toBase58())?.publicKey;
 
-  const mint = swapType === "BaseOut" ? outputMint : inputMint;
-  const raydiumClient = await RaydiumClient.getInstance();
-  const tokenInfo = await raydiumClient.token.getTokenInfo(mint);
-  const decimals = tokenInfo.decimals;
-  const amountInSmallestUnit = new Decimal(amount).mul(new Decimal(10).pow(decimals)).toFixed(0);
+  const { data: swapTransactions } = await axios.post<{
+    id: string;
+    version: string;
+    success: boolean;
+    data: { transaction: string }[];
+  }>(`${API_URLS.SWAP_HOST}/transaction/${apiTrail}`, {
+    computeUnitPriceMicroLamports: String(data.data.default.h),
+    swapResponse,
+    txVersion,
+    wallet: owner.publicKey.toBase58(),
+    wrapSol: isInputSol,
+    unwrapSol: isOutputSol, // true means output mint receive sol, false means output mint received wsol
+    inputAccount: isInputSol ? undefined : inputTokenAcc?.toBase58(),
+    outputAccount: isOutputSol ? undefined : outputTokenAcc?.toBase58(),
+  });
 
-  const url =
-    inputMint && outputMint && !new Decimal(amount.trim() || 0).isZero()
-      ? `${API_URLS.SWAP_HOST}/compute/${apiTrail}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInSmallestUnit}&slippageBps=${slippageBps}&txVersion=${TX_VERSION === TxVersion.V0 ? "V0" : "LEGACY"}`
-      : null;
+  const allTxBuf = swapTransactions.data.map((tx) => Buffer.from(tx.transaction, "base64"));
+  const allTransactions = allTxBuf.map((txBuf) =>
+    isV0Tx ? VersionedTransaction.deserialize(txBuf) : Transaction.from(txBuf),
+  );
 
-  if (!url) {
-    return 0;
+  // console.log(`total ${allTransactions.length} transactions`, swapTransactions);
+
+  let idx = 0;
+  const txIds: string[] = [];
+
+  if (!isV0Tx) {
+    for (const tx of allTransactions) {
+      console.log(`${++idx} transaction sending...`);
+      const transaction = tx as Transaction;
+      transaction.sign(owner);
+      const txId = await sendAndConfirmTransaction(CONNECTION, transaction, [owner], { skipPreflight: true });
+      console.log(`${++idx} transaction confirmed, txId: ${txId}`);
+      txIds.push(txId);
+    }
+  } else {
+    for (const [i, tx] of allTransactions.entries()) {
+      const idx = i + 1;
+      const transaction = tx as VersionedTransaction;
+
+      const txId = await sendAndConfirmV0Transaction({
+        connection: CONNECTION,
+        transaction,
+        signer: owner,
+        maxRetries: 2,
+        logPrefix: `[Tx ${idx}]`,
+      });
+
+      txIds.push(txId);
+    }
   }
 
-  const response: AxiosResponse<SimulateSwapApiResult> = await axios.get(url);
-  const data = response.data;
-
-  console.log("data", data);
-  if (data?.success && data.data) {
-    return data.data.outputAmount;
-  }
-  return 0;
+  return txIds;
 };
