@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "raydium-main:ts": "ts-node -r tsconfig-paths/register src/main/raydium-main.ts"
+    "raydium-main:ts": "ts-node -r tsconfig-paths/register src/main/raydium-main.ts",
+    "transction-main:ts": "ts-node -r tsconfig-paths/register src/main/transaction-main.ts",
+    "keypair-main:ts": "ts-node -r tsconfig-paths/register src/main/keypair-main.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^9.3.0",
