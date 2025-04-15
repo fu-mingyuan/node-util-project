@@ -9,8 +9,14 @@ import RaydiumClient from "@/utils/raydium/raydiumClient";
 export const fetchRpcPoolInfo = async (tokenAMint: PublicKey, tokenBMint: PublicKey) => {
   try {
     const raydium = await RaydiumClient.getInstance();
-    const poolId = await generateCpmmPdaPoolId(tokenAMint, tokenBMint);
+    // const poolId = await generateCpmmPdaPoolId(tokenAMint, tokenBMint);
+
+    const poolId = '2RRbHfBB8btYaTeFVujsLhSdfWQYPAmG367gV1ZkLBHJ';
     console.log("poolId", poolId);
+
+
+
+
     const res = await raydium.cpmm.getRpcPoolInfos([poolId]);
     // console.log(JSON.stringify(res, null, 2))
     const pool1Info = res[poolId];

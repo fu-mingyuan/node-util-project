@@ -5,7 +5,9 @@
   "scripts": {
     "raydium-main:ts": "ts-node -r tsconfig-paths/register src/main/raydium-main.ts",
     "transction-main:ts": "ts-node -r tsconfig-paths/register src/main/transaction-main.ts",
-    "keypair-main:ts": "ts-node -r tsconfig-paths/register src/main/keypair-main.ts"
+    "keypair-main:ts": "ts-node -r tsconfig-paths/register src/main/keypair-main.ts",
+    "create-ata-main:ts": "ts-node -r tsconfig-paths/register src/main/createATA-main.ts",
+    "kgold-main:ts": "ts-node -r tsconfig-paths/register src/main/kgold-main.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^9.3.0",

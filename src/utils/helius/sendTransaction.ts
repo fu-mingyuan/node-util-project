@@ -25,23 +25,23 @@ import HeliusClient from "@/utils/helius/heliusClient";
  * @param recipientPublicKey 转账接收方 wallet address
  * @param amount 转账金额
  * @param memo 附言
- * @param token_mint 转账的代币类型
+ * @param tokenMint 转账的代币类型
  */
 export const sendTransaction = async (
   senderKeypair: Keypair,
   recipientPublicKey: PublicKey,
   amount: number,
-  token_mint: PublicKey,
+  tokenMint: PublicKey,
   memo?: string,
 ) => {
   try {
     const heliusSdkClient = HeliusClient.getInstance();
     const recentBlockHash = await heliusSdkClient.rpc.getLatestBlockhash();
-    const isNativeSOL = token_mint?.equals(NATIVE_MINT);
+    const isNativeSOL = tokenMint?.equals(NATIVE_MINT);
     const tokenProgram = isNativeSOL ? TOKEN_PROGRAM_ID : TOKEN_2022_PROGRAM_ID;
 
-    const senderATAAddress = await fetchAssociatedTokenAddress(senderKeypair.publicKey, token_mint);
-    const recipientATAAddress = await fetchAssociatedTokenAddress(recipientPublicKey, token_mint);
+    const senderATAAddress = await fetchAssociatedTokenAddress(senderKeypair.publicKey, tokenMint);
+    const recipientATAAddress = await fetchAssociatedTokenAddress(recipientPublicKey, tokenMint);
 
     const instructions = [];
     amount = amount * LAMPORTS_PER_SOL;
@@ -58,7 +58,7 @@ export const sendTransaction = async (
       // 检查接收方是否已经存在 ATA 账户
       const tokenAccountsResponse = await fetchAccounts(recipientPublicKey);
       const hasMint: boolean | undefined = tokenAccountsResponse?.token_accounts?.some(
-        (account) => account.mint === token_mint.toBase58(),
+        (account) => account.mint === tokenMint.toBase58(),
       );
 
       if (!hasMint) {
@@ -67,7 +67,7 @@ export const sendTransaction = async (
           senderKeypair.publicKey, // 费用支付者
           recipientATAAddress, // 新创建的 ATA 账户地址
           recipientPublicKey, // 该账户归接收者所有
-          new PublicKey(token_mint), // mint address
+          new PublicKey(tokenMint), // mint address
           tokenProgram, //代币程序 ID
           ASSOCIATED_TOKEN_PROGRAM_ID, // 关联账户程序 ID
         );

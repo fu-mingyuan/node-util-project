@@ -1,4 +1,4 @@
-import { PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { Keypair, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { retryRequest } from "@/utils/httpClients";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -13,8 +13,13 @@ import HeliusClient from "@/utils/helius/heliusClient";
  * 创建 publicKey 的 ATA
  * @param owner publicKey
  * @param mint spl token
+ * @param payer
  */
-export const createAssociatedTokenAccount = async (owner: PublicKey, mint: PublicKey): Promise<boolean> => {
+export const createAssociatedTokenAccount = async (
+  owner: PublicKey,
+  mint: PublicKey,
+  payer: Keypair,
+): Promise<boolean> => {
   return await retryRequest(async () => {
     try {
       const tokenAccountsResponse = await fetchAccounts(owner);
@@ -27,12 +32,10 @@ export const createAssociatedTokenAccount = async (owner: PublicKey, mint: Publi
         return true;
       }
 
-      // const feePayerKeypair = Keypair.fromSecretKey(Buffer.from(TRANSACTION_FEE_PAYER_PRIVATE_KEY, "hex"));
-
       const instructions: TransactionInstruction[] = [];
       const associatedTokenAccount = await fetchAssociatedTokenAddress(owner, mint);
       const createATAInstruction = createAssociatedTokenAccountIdempotentInstruction(
-        owner, // 费用支付者
+        payer.publicKey, // 费用支付者
         associatedTokenAccount, // 新创建的 ATA 账户地址
         owner, // 该账户归接收者所有
         new PublicKey(mint), // mint publicKey
@@ -42,20 +45,18 @@ export const createAssociatedTokenAccount = async (owner: PublicKey, mint: Publi
       instructions.push(createATAInstruction);
 
       const heliusClient = HeliusClient.getInstance();
-
       const recentBlockHash = await heliusClient.rpc.getLatestBlockhash();
 
       // 构建交易消息
       const messageV0 = new TransactionMessage({
-        payerKey: owner,
+        payerKey: payer.publicKey,
         recentBlockhash: recentBlockHash.blockhash,
         instructions,
       }).compileToV0Message();
 
       const versionedTransaction = new VersionedTransaction(messageV0);
 
-      // todo:
-      // versionedTransaction.sign([feePayerKeypair]);
+      versionedTransaction.sign([payer]);
 
       // 发送交易
       const txSignature = await heliusClient.rpc.sendTransaction(versionedTransaction);
