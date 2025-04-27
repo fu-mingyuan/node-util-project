@@ -15,7 +15,7 @@ export const fetchSignaturesForAddress = async (
   publicKey: PublicKey,
   beforeSignature: string | null = null,
   limit: number = 20,
-  mint: PublicKey,
+  mint?: PublicKey,
 ): Promise<SignaturesInfo[]> => {
   try {
     const options: { limit: number; commitment: string; before?: string } = {
@@ -27,7 +27,13 @@ export const fetchSignaturesForAddress = async (
       options.before = beforeSignature;
     }
 
-    const tokenAccount = await fetchAssociatedTokenAddress(publicKey, mint);
+    let tokenAccount: PublicKey;
+    if (mint) {
+      tokenAccount = await fetchAssociatedTokenAddress(publicKey, mint);
+    } else {
+      tokenAccount = publicKey;
+    }
+
     const response = await httpClients.post<SignaturesInfo[]>(HeliusClient.getCurrentNetwork().endpoint, {
       jsonrpc: "2.0",
       id: "1",

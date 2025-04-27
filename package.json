@@ -5,11 +5,15 @@
   "scripts": {
     "raydium-main:ts": "ts-node -r tsconfig-paths/register src/main/raydium-main.ts",
     "transction-main:ts": "ts-node -r tsconfig-paths/register src/main/transaction-main.ts",
+    "transction-history-main:ts": "ts-node -r tsconfig-paths/register src/main/transaction-history-main.ts",
     "keypair-main:ts": "ts-node -r tsconfig-paths/register src/main/keypair-main.ts",
-    "create-ata-main:ts": "ts-node -r tsconfig-paths/register src/main/createATA-main.ts",
-    "kgold-main:ts": "ts-node -r tsconfig-paths/register src/main/kgold-main.ts"
+    "some-ata-main:ts": "ts-node -r tsconfig-paths/register src/main/someATA-main.ts",
+    "kgold-main:ts": "ts-node -r tsconfig-paths/register src/main/kgold-main.ts",
+    "solana-tx-parse-main.ts": "ts-node -r tsconfig-paths/register src/main/solanaTxParse-main.ts"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.31.0",
+    "@debridge-finance/solana-transaction-parser": "^3.2.3",
     "@faker-js/faker": "^9.3.0",
     "@internationalized/date": "^3.6.0",
     "@radix-ui/react-checkbox": "^1.1.3",
@@ -39,8 +43,10 @@
     "@tanstack/match-sorter-utils": "^8.19.4",
     "@tanstack/react-table": "^8.20.6",
     "@tremor/react": "^3.18.7",
+    "anchor": "github:coral-xyz/anchor",
     "axios": "^1.8.4",
     "bn.js": "^5.2.1",
+    "bs58": "^6.0.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "decimal.js": "^10.5.0",

@@ -1,15 +1,19 @@
 import { PublicKey } from "@solana/web3.js";
-import { retryRequest } from "@/utils/httpClients";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import HeliusClient from "@/utils/helius/heliusClient";
 
 /**
  * 获取 token account address
  * @param publicKey wallet address
- * @param mintAddress spl token mint address
+ * @param mint spl token mint address
  */
-export const fetchAssociatedTokenAddress = async (publicKey: PublicKey, mintAddress: PublicKey) => {
-  return await retryRequest(
-    () => getAssociatedTokenAddress(mintAddress, publicKey, false, TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
-    "fetchAssociatedTokenAddress",
-  );
+export const fetchAssociatedTokenAddress = async (publicKey: PublicKey, mint: PublicKey) => {
+  const heliusClient = HeliusClient.getInstance();
+  const assetInfo = await heliusClient.rpc.getAsset({ id: mint.toBase58() });
+  if (!assetInfo.token_info?.token_program) {
+    throw new Error("token info does not match token_info");
+  }
+  const programId = new PublicKey(assetInfo.token_info.token_program);
+
+  return await getAssociatedTokenAddress(mint, publicKey, false, programId);
 };
