@@ -4,6 +4,7 @@ import {
   PublicKey,
   SystemProgram,
   TransactionMessage,
+  TransactionSignature,
   VersionedTransaction,
 } from "@solana/web3.js";
 import {
@@ -114,12 +115,52 @@ export const sendTransaction = async (
     console.log("发送交易 ...");
     const txSignature = await heliusSdkClient.rpc.sendTransaction(versionedTransaction);
     console.log("请求交易结果 ...");
-    const confirmedSignature = await heliusSdkClient.rpc.pollTransactionConfirmation(txSignature);
-
+    // const confirmedSignature = await heliusSdkClient.rpc.pollTransactionConfirmation(txSignature);
+    const confirmedSignature = await pollTransactionConfirmation(txSignature);
     console.log("交易已成功确认:", confirmedSignature);
     return confirmedSignature === txSignature ? confirmedSignature : null;
   } catch (error) {
     console.error(`发送交易时发生错误: ${error}`);
     throw "Transaction failed";
   }
+};
+
+const pollTransactionConfirmation = async (txtSig: TransactionSignature): Promise<TransactionSignature> => {
+  const timeout = 22000; // 15 秒超时
+  const interval = 3000; // 每 3 秒查询一次
+  let elapsed = 0;
+  const heliusClient = HeliusClient.getInstance();
+
+  return new Promise<TransactionSignature>((resolve, reject) => {
+    const checkStatus = async () => {
+      try {
+        const status = await heliusClient.connection.getSignatureStatuses([txtSig], { searchTransactionHistory: true });
+        const info = status?.value[0];
+
+        if (info?.confirmationStatus === "confirmed" || info?.confirmationStatus === "finalized") {
+          clearInterval(intervalId);
+          if (info.err) {
+            reject(new Error(`Transaction ${txtSig} failed with error: ${JSON.stringify(info.err)}`));
+          } else {
+            resolve(txtSig);
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn("⛔ 获取交易状态失败，重试中:", err);
+      }
+
+      elapsed += interval;
+      if (elapsed >= timeout) {
+        clearInterval(intervalId);
+        reject(new Error(`Transaction ${txtSig}'s confirmation timed out`));
+      }
+    };
+
+    // 立即执行第一次
+    checkStatus();
+
+    // 后续每 interval 毫秒执行
+    const intervalId = setInterval(checkStatus, interval);
+  });
 };

@@ -25,7 +25,7 @@ export const createAssociatedTokenAccount = async (senderKeypair: Keypair, mint:
       (account) => account.mint === mint.toBase58(),
     );
 
-    // 判断账户是否存在 K 币的 ATA
+    // 判断账户是否存在 ATA
     if (hasMint) {
       return true;
     }
