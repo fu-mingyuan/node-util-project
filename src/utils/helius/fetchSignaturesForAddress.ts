@@ -1,8 +1,8 @@
 import { PublicKey } from "@solana/web3.js";
 import { fetchAssociatedTokenAddress } from "@/utils/helius/fetchAssociatedTokenAddress";
 import { httpClients } from "@/utils/httpClients";
-import { SignaturesInfo } from "@/utils/helius/fetchTransactionHistory";
 import HeliusClient from "@/utils/helius/heliusClient";
+import { SignaturesInfo } from "@/types";
 
 /**
  * 获取 publicKey 的交易签名数据

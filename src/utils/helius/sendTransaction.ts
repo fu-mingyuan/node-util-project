@@ -11,13 +11,13 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   createTransferInstruction,
   NATIVE_MINT,
-  TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { createMemoInstruction } from "@solana/spl-memo";
 import { fetchAssociatedTokenAddress } from "@/utils/helius/fetchAssociatedTokenAddress";
 import { fetchAccounts } from "@/utils/helius/fetchAccounts";
 import HeliusClient from "@/utils/helius/heliusClient";
+import Decimal from "decimal.js";
+import RaydiumClient from "@/utils/raydium/raydiumClient";
 
 /**
  * 发送交易
@@ -38,23 +38,28 @@ export const sendTransaction = async (
     const heliusSdkClient = HeliusClient.getInstance();
     const recentBlockHash = await heliusSdkClient.rpc.getLatestBlockhash();
     const isNativeSOL = tokenMint?.equals(NATIVE_MINT);
-    const tokenProgram = isNativeSOL ? TOKEN_PROGRAM_ID : TOKEN_2022_PROGRAM_ID;
-
     const senderATAAddress = await fetchAssociatedTokenAddress(senderKeypair.publicKey, tokenMint);
     const recipientATAAddress = await fetchAssociatedTokenAddress(recipientPublicKey, tokenMint);
-
     const instructions = [];
-    amount = amount * LAMPORTS_PER_SOL;
 
     if (isNativeSOL) {
       // 原生 SOL 转账
+      // amount = amount * LAMPORTS_PER_SOL;
+
+      const rawAmount = new Decimal(amount).mul(LAMPORTS_PER_SOL).toFixed(0);
+      const finalAmount = BigInt(rawAmount);
       const transferInstruction = SystemProgram.transfer({
         fromPubkey: senderKeypair.publicKey,
         toPubkey: recipientPublicKey,
-        lamports: amount,
+        lamports: finalAmount,
       });
       instructions.push(transferInstruction);
     } else {
+      const raydiumClient = await RaydiumClient.getInstance();
+      const tokenInfo = await raydiumClient.token.getTokenInfo(tokenMint);
+      const decimals = tokenInfo.decimals;
+      const rawAmount = new Decimal(amount).mul(new Decimal(10).pow(decimals)).toFixed(0);
+      const finalAmount = BigInt(rawAmount);
       // 检查接收方是否已经存在 ATA 账户
       const tokenAccountsResponse = await fetchAccounts(recipientPublicKey);
       const hasMint: boolean | undefined = tokenAccountsResponse?.token_accounts?.some(
@@ -68,42 +73,47 @@ export const sendTransaction = async (
           recipientATAAddress, // 新创建的 ATA 账户地址
           recipientPublicKey, // 该账户归接收者所有
           new PublicKey(tokenMint), // mint address
-          tokenProgram, //代币程序 ID
+          new PublicKey(tokenInfo.programId), //代币程序 ID
           ASSOCIATED_TOKEN_PROGRAM_ID, // 关联账户程序 ID
         );
         instructions.push(createATAInstruction);
       }
 
-      console.log("创建代币转账指令...");
+      console.log("接收方存在 ATA 账户, 开始构建代币交易 transferInstruction ...");
       const transferInstruction = createTransferInstruction(
         senderATAAddress, // 发送方 ATA 地址
         recipientATAAddress, // 接收方 ATA 地址
         senderKeypair.publicKey, // 发送方的 publicKey
-        amount, // 转账金额
-        [], // 可选的签名者（如果有的话）
-        TOKEN_2022_PROGRAM_ID, // Token-2022 代币程序 ID
+        finalAmount, // 转账金额
+        [senderKeypair], // 可选的签名者（如果有的话）
+        new PublicKey(tokenInfo.programId), // Token-2022 代币程序 ID
       );
       instructions.push(transferInstruction);
     }
 
     // 添加 memo
     if (memo) {
+      console.log("添加memo...");
       const memoInstruction = createMemoInstruction(memo, [senderKeypair.publicKey]);
       instructions.push(memoInstruction);
     }
 
     // 构建交易
+    console.log("构建 messageV0 ...");
     const messageV0 = new TransactionMessage({
       payerKey: senderKeypair.publicKey,
       recentBlockhash: recentBlockHash.blockhash,
       instructions,
     }).compileToV0Message();
 
+    console.log("构建 versionedTransaction ...");
     const versionedTransaction = new VersionedTransaction(messageV0);
     versionedTransaction.sign([senderKeypair]);
 
     // 发送交易
+    console.log("发送交易 ...");
     const txSignature = await heliusSdkClient.rpc.sendTransaction(versionedTransaction);
+    console.log("请求交易结果 ...");
     const confirmedSignature = await heliusSdkClient.rpc.pollTransactionConfirmation(txSignature);
 
     console.log("交易已成功确认:", confirmedSignature);
