@@ -28,7 +28,7 @@ import { getMultipleAccountsInfo } from "@raydium-io/raydium-sdk-v2";
     // new PublicKey("So11111111111111111111111111111111111111112"),
     new PublicKey("6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN"),
     // new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
-    // new PublicKey("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),
+    new PublicKey("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),
     // new PublicKey("3bRTivrVsitbmCTGtqwp7hxXPsybkjn4XLNtPsHqa3zR"),
   ];
 
@@ -55,10 +55,10 @@ import { getMultipleAccountsInfo } from "@raydium-io/raydium-sdk-v2";
     // new PublicKey("DnjwFMvwiLBABws6JpVpAUTyBV9wmucjAMxdnxAVFH92"),
   ];
 
-  // const parseATA = await helius.connection.getMultipleParsedAccounts(allMints);
+  const parseATA = await helius.connection.getMultipleParsedAccounts(allMints);
 
 
-  const parseATA = await getAccount(helius.connection, tokenAccount);
+  // const parseATA = await getAccount(helius.connection, tokenAccount);
   console.log("parseATA-->: ", parseATA);
   console.log("parseATA-->: ", JSON.stringify(parseATA, null, 2));
 

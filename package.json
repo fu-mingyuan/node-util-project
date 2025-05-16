@@ -9,7 +9,8 @@
     "keypair-main:ts": "ts-node -r tsconfig-paths/register src/main/keypair-main.ts",
     "some-ata-main:ts": "ts-node -r tsconfig-paths/register src/main/someATA-main.ts",
     "kgold-main:ts": "ts-node -r tsconfig-paths/register src/main/kgold-main.ts",
-    "solana-tx-parse-main.ts": "ts-node -r tsconfig-paths/register src/main/solanaTxParse-main.ts"
+    "solana-tx-parse-main.ts": "ts-node -r tsconfig-paths/register src/main/solanaTxParse-main.ts",
+    "main.ts": "ts-node -r tsconfig-paths/register src/main/main.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.0",
