@@ -58,7 +58,7 @@ export class KeypairUtils {
   }
 
   // 加密、拆分私钥
-  static encryptAndSplitPrivateKey(keypair: Keypair, password: string): string[] {
+  static encryptAndSplitPrivateKey(keypair: Keypair, password: string): [string, string, string] {
     const privateKey = keypair.secretKey;
     const privateKeyBuffer = Buffer.from(privateKey);
     // 对私钥进行加密处理
@@ -84,26 +84,19 @@ export class KeypairUtils {
 
     // 验证返回值
     if (!Array.isArray(shares) || shares.length !== 3) {
-      throw new Error(
-        `Failed to generate key shares: expected 3 shares, but got ${shares?.length || 0}`,
-      );
+      throw new Error(`Failed to generate key shares: expected 3 shares, but got ${shares?.length || 0}`);
     }
-
     // 验证并转换每个 share 为 hex 字符串
     return shares.map((share) => {
       if (!Buffer.isBuffer(share)) {
         throw new Error(`Invalid share format: expected Buffer, got ${typeof share}`);
       }
       return share.toString("hex");
-    });
+    }) as [string, string, string];
   }
 
   // 还原、解密私钥
-  static combineAndDecryptPrivateKey(
-    privateKeyShares: Buffer[],
-    password: string,
-    publicKey: string,
-  ): Buffer {
+  static combineAndDecryptPrivateKey(privateKeyShares: Buffer[], password: string, publicKey: string): Buffer {
     try {
       // 恢复完整的私钥加密数据
       const restoredBuffer = combine([privateKeyShares[0], privateKeyShares[1]]);
